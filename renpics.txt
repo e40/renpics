@@ -1,4 +1,13 @@
-$Revision$	 -[Wed Feb 26 16:49:46 2003 by layer]-
+$Revision$	 -[Thu Feb 27 09:50:00 2003 by layer]-
+
+Table of Contents:
+
+1. Introduction
+2. Binary installation
+3. Building from source code
+
+===============================================================================
+1. Introduction
 
 "renpics" -- rename pictures from a digital camera
 
@@ -63,3 +72,26 @@ The command line arguments are:
 
   Be quiet, very quiet.  Normally renpics prints informative messages
   as to what it is doing.
+
+===============================================================================
+2. Binary installation
+
+Copy the appropriate binary distribution:
+
+ftp://ftp.franz.com/pub/examples/renpics/renpics-1.6-windows.zip
+
+Unzip the binary and put the files somewhere in your PATH.  The
+file in the ``system-dlls'' sub-directory, msvcrt.dll, will only be
+needed in rare cases--if you get an error message about this DLL
+being missing, copy it into the same directory as pubpics.exe.
+
+===============================================================================
+3. Building from source code
+
+Start up a fully patched Allegro CL 6.2 Enterprise Edition and
+evaluate this:
+
+      (load "buildit.cl")
+
+It will make a renpics/ directory, which is how the renpics-<version>
+directories above was created.
