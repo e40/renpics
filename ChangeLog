@@ -6,6 +6,7 @@
 	* makefile: src-dist and dist work
 	* renpics.cl: move location of exif-utils 
 	* renpics.txt: add stuff
+	* buildit.cl: output to `renpics' not `dist'
 
 2003-02-26  Kevin Layer  <layer@relay.known.net>
 
