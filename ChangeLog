@@ -1,3 +1,11 @@
+2002-10-17    <layer@OOB2>
+
+	* (NEW) renpics.txt
+	* buildit.bat: 6.0 -> 6.2
+	* buildit.cl: for 6.2
+	* renpics.cl: add -c/-f command line arguments; better usage; add
+	some more cameras
+
 2000-12-31    <layer@OOB>
 
 	* checked into cvs
