@@ -41,7 +41,7 @@ not give a -o argument, it will keep renaming the files, updating only the
 nn (sequence number) value discussed above.
 ")
 
-(defun renpics-init-function ()
+(defun main ()
   (handler-case
       (sys:with-command-line-arguments
 	  ("c:fI:o:mnq"

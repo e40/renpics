@@ -13,7 +13,7 @@
  "dist/"
  '(:seq2 "renpics.fasl")
  :application-files '("renpics.txt")
- :restart-init-function 'renpics-init-function
+ :restart-init-function 'main
  :include-ide nil
  :include-compiler nil
  :us-government nil
@@ -45,6 +45,8 @@
   (delete-file "dist/renpics.exe")
   (sys:copy-file "c:/Program files/acl62/buildi.exe" "dist/renpics.exe"))
 
+;; I believe :ignore-command-line-arguments makes the following unncessary
+#+ignore
 (with-open-file (s "dist/renpics.rc" :direction :output)
   (format s ".command-line: --~%"))
 

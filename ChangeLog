@@ -1,3 +1,8 @@
+2002-12-27    <layer@OOB2>
+
+	* buildit.cl: don't install renpics.rc; rename init function
+	* renpics.cl: rename init function
+
 2002-12-26    <layer@OOB2>
 
 	* buildit.cl: break on warnings, misc
