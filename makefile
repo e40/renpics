@@ -42,17 +42,15 @@ bin_zip = DIST/$(bin_dir)-windows.zip
 src_zip = DIST/$(src_dir).zip
 readme  = DIST/renpics-$(version).txt
 
-#######HERE
 src-dist: FORCE
-	rm -fr $(src_dir) $(src_gz)
+	rm -fr $(src_dir) $(src_zip)
 	mkdir $(src_dir)
 	tar cf - $(src_files) | (cd $(src_dir); tar xf -)
 	find $(src_dir) -type f -print | zip -q $(src_zip) -@9
 	rm -fr $(src_dir)
 
-
 dist:	FORCE
-	rm -fr $(bin_dir) $(bin_tar) $(bin_gz) $(bin_bz2) $(readme)
+	rm -fr $(bin_dir) $(bin_zip) $(readme)
 	cp -rp renpics $(bin_dir)
 	cp -p renpics.txt $(bin_dir)
 	cp -p renpics.txt $(readme)

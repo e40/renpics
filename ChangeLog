@@ -1,6 +1,7 @@
 2005-01-04    <layer@OOB2>
 
-	* makefile: use 7.0
+	* makefile: use 7.0; fix src-dist and dist
+	* buildit.cl: workaround bug in 7.0 patch
 
 2004-09-27    <layer@OOB2>
 

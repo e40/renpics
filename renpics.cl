@@ -1,6 +1,6 @@
 ;; Rename picture files based on date they were taken.
 ;;
-;; This software is Copyright (c) Kevin Layer, 2000-2003.
+;; This software is Copyright (c) Kevin Layer, 2000-2005.
 ;; Kevin Layer grants you the rights to distribute
 ;; and use this software as governed by the terms
 ;; of the Lisp Lesser GNU Public License

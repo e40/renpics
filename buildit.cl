@@ -26,7 +26,7 @@
  :record-xref-info nil
  :record-source-file-info nil
  :include-devel-env nil
- :include-tpl nil
+ :include-tpl t ;; nil -----workaround bug in patch paa003.001
  :newspace 6144
  :oldspace 256000
  :show-window :normal
