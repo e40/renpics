@@ -1,16 +1,17 @@
-"renpics" -- rename pictures
+"renpics" -- rename pictures from a digital camera
 
-renpics can be used to rename jpg files based on exposure date and
-time in the EXIF header.  The files are renamed to have the form:
+renpics can be used to rename jpg files produced by a digital camera
+based on exposure date and time the pictures were taken.  The files
+are renamed to have the form:
 
    YYYYMMDD-hhmm-ssnn-xxxx.jpg
 
 where YYYY is the year, MM is the month, DD is the day, hh is the
 hour, mm is the minute, ss is the second, nn is a sequence number used
-only when more than one picture was taken in a given second, and xxxx
+when more than one picture was taken in a given second, and xxxx
 is the camera name.
 
-Type "renpics" to see what command line arguments renpics accepts.
+Type "renpics" to see what command line arguments it accepts.
 
 renpics is a Windows console app.  That is, it is meant to be run from
 a command shell (command.com or cmd.exe).
@@ -23,5 +24,6 @@ card onto my hard drive:
    pause
 
 -m means `move' instead of `copy'.  `-o c:/pictures/_TMP/' is the
-destination directory and j:/ is the source directory.  renpics looks
-in all subdirectories of j:/ for all .jpg's.
+destination directory and `j:/' is the source directory, which is the
+CompactFlash reader.  renpics looks in all subdirectories of j:/ for
+all .jpg's.

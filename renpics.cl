@@ -1,4 +1,13 @@
-;; $Id$
+;; Rename picture files based on date they were taken.
+;;
+;; This software is Copyright (c) Kevin Layer, 2000-2003.
+;; Kevin Layer grants you the rights to distribute
+;; and use this software as governed by the terms
+;; of the Lisp Lesser GNU Public License
+;; (http://opensource.franz.com/preamble.html),
+;; known as the LLGPL.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; $Revision$
 
 (in-package :user)
 

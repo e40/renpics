@@ -1,3 +1,10 @@
+2003-02-26  Kevin Layer  <layer@relay.known.net>
+1.5 public release
+
+	* (NEW) makefile
+	* renpics.cl: add copyright
+	* renpics.txt: update
+
 2002-12-27    <layer@OOB2>
 
 	* buildit.cl: don't install renpics.rc; rename init function
