@@ -1,8 +1,10 @@
+$Revision$	 -[Wed Feb 26 16:49:46 2003 by layer]-
+
 "renpics" -- rename pictures from a digital camera
 
-renpics can be used to rename jpg files produced by a digital camera
-based on exposure date and time the pictures were taken.  The files
-are renamed to have the form:
+renpics can be used to rename `jpg' (and `avi' and `wav') files
+produced by a digital camera based on exposure date and time the
+pictures were taken.  The files are renamed to have the form:
 
    YYYYMMDD-hhmm-ssnn-xxxx.jpg
 
@@ -10,8 +12,6 @@ where YYYY is the year, MM is the month, DD is the day, hh is the
 hour, mm is the minute, ss is the second, nn is a sequence number used
 when more than one picture was taken in a given second, and xxxx
 is the camera name.
-
-Type "renpics" to see what command line arguments it accepts.
 
 renpics is a Windows console app.  That is, it is meant to be run from
 a command shell (command.com or cmd.exe).
@@ -27,3 +27,39 @@ card onto my hard drive:
 destination directory and `j:/' is the source directory, which is the
 CompactFlash reader.  renpics looks in all subdirectories of j:/ for
 all .jpg's.
+
+As mentioned above the name of the camera is added to the filename, at
+the end.  For those that have different models of digital cameras, it
+is often very useful to know from which camera a picture was taken.
+If `renpics' does not know about your camera, then you can tell it
+with the -c command line argument (see below).
+
+The command line arguments are:
+
+-c camera
+
+  Set the name of the camera to `camera'.
+
+-f
+
+  Use the date `of' the file not the date `in' the file.  The date in
+  the file is taken from the EXIF header created by the camera.
+
+-o output-directory
+
+  Set the output directory where the renamed files go.  It can be the
+  same as the input directory, in which case the files are just
+  renamed in that directory.
+
+-m
+
+  Move instead of copy the files.
+
+-n
+
+  Do not rename any files, just print what would have been done.
+
+-q
+
+  Be quiet, very quiet.  Normally renpics prints informative messages
+  as to what it is doing.

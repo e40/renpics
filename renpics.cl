@@ -12,10 +12,10 @@
 (in-package :user)
 
 (eval-when (compile)
-  (compile-file-if-needed "../exif-utils/exifinfo.cl"))
+  (compile-file-if-needed "exif-utils/exifinfo.cl"))
 
 (eval-when (compile eval load)
-  (require :exifinfo "../exif-utils/exifinfo.fasl")
+  (require :exifinfo "exif-utils/exifinfo.fasl")
   (use-package :util.exif)
 
   (require :aclwin)
