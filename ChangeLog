@@ -1,3 +1,9 @@
+2002-12-26    <layer@OOB2>
+
+	* buildit.cl: break on warnings, misc
+	* renpics.cl: remove old settings for image startup; exifdump
+	renamed to exifinfo; remove unused code
+
 2002-10-17    <layer@OOB2>
 
 	* (NEW) renpics.txt

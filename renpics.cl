@@ -2,18 +2,13 @@
 
 (in-package :user)
 
-(setq *read-init-files* nil)
-(setq excl::*internal-read-init-files* nil)
-(setq *print-startup-message* nil)
-(setq excl::.dump-lisp-suppress-allegro-cl-banner. t)
-(setq excl::*force-quiet-exit* t) ; 6.0
-(setq sys::.ignore-command-line-arguments. t)
-
 (eval-when (compile)
-  (compile-file-if-needed "c:/src/exif-utils/exifdump.cl"))
+  (compile-file-if-needed "../exif-utils/exifinfo.cl"))
 
 (eval-when (compile eval load)
-  (require :exifdump "c:/src/exif-utils/exifdump.fasl")
+  (require :exifinfo "../exif-utils/exifinfo.fasl")
+  (use-package :util.exif)
+
   (require :aclwin)
   (require :fileutil))
 
@@ -219,28 +214,8 @@ nn (sequence number) value discussed above.
 	    (return-from exif-based-name new)))
 	(incf sequence)))))
 
-#+ignore
-(defun read-exif-info (file)
-  (multiple-value-bind (s error-s pid)
-      (progn
-	(chdir (excl::path-pathname file))
-	(run-shell-command
-	 (format nil "bash -c \"exifhead.exe '~a'\"" (file-namestring file))
-	 :output :stream
-	 :error-output :stream
-	 :wait nil
-	 :show-window :hide))
-    (unwind-protect
-	(let ((exif-info (read s nil s)))
-	  (when (null exif-info)
-	    (error "could not read exif info from ~a." file))
-	  exif-info)
-      (sys:reap-os-subprocess :pid pid :wait t)
-      (ignore-errors (close s))
-      (ignore-errors (close error-s)))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; utils which should be in allegro?????
+;;;; utils
 
 (defun error-die (format &rest args)
   (if* *debug*
