@@ -4,7 +4,7 @@ on_windows = $(shell if test -d "c:/"; then echo yes; else echo no; fi)
 
 ifndef mlisp
 ifeq ($(on_windows),yes)
-acldir = /c/Program Files/acl62
+acldir = /c/Program Files/acl70pf
 mlisp = "$(acldir)/mlisp.exe" +B +cn
 else
 mlisp = mlisp

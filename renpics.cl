@@ -53,11 +53,10 @@ nn (sequence number) value discussed above.
 (defun main ()
   (handler-case
       (sys:with-command-line-arguments
-	  ("c:fI:o:mnq"
-	   camera file-date image-file output-directory move-images
+	  ("c:fo:mnq"
+	   camera file-date output-directory move-images
 	   *no-execute* *quiet*)
 	  (rest)
-	(declare (ignore image-file))
 	(when (/= 1 (length rest))
 	  (format t "~&You must provide an input directory.~%")
 	  (error-die *usage*))
@@ -167,6 +166,8 @@ nn (sequence number) value discussed above.
 		    then raw-camera
 		  elseif (string= "DSC-D700" raw-camera)
 		    then "D700"
+		  elseif (string= "Canon PowerShot S1 IS" raw-camera)
+		    then "S1IS"
 		  elseif (string= "Canon PowerShot S20" raw-camera)
 		    then "S20"
 		  elseif (string= "Canon PowerShot S30" raw-camera)

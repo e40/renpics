@@ -43,7 +43,7 @@
 #+mswindows
 (progn
   (delete-file "renpics/renpics.exe")
-  (sys:copy-file "c:/Program files/acl62/buildi.exe" "renpics/renpics.exe"))
+  (sys:copy-file "sys:buildi.exe" "renpics/renpics.exe"))
 
 ;; I believe :ignore-command-line-arguments makes the following unncessary
 #+ignore

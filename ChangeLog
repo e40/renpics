@@ -1,3 +1,8 @@
+2004-09-27    <layer@OOB2>
+
+	* makefile: use 7.0.pre-final
+	* renpics.cl: support S1 IS; build on 7.0
+
 2003-02-27  Kevin Layer  <layer@relay.known.net>
 1.6 public release
 
