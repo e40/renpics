@@ -16,16 +16,16 @@ default:	build
 all:	clean build install
 
 build:	FORCE
-	rm -fr dist
+	rm -fr renpics
 	$(mlisp) -L buildit.cl -kill -batch
 
 install: FORCE
 ifeq ($(on_windows),yes)
-	cp -p dist/*.* c:/bin
+	cp -p renpics/*.* c:/bin
 else
 	rm -fr /usr/local/renpics
 	mkdir /usr/local/renpics
-	cp -p dist/* /usr/local/renpics
+	cp -p renpics/* /usr/local/renpics
 	rm -f /usr/local/bin/renpics
 	ln -s /usr/local/renpics/renpics /usr/local/bin/renpics
 endif
@@ -38,7 +38,7 @@ src_files = renpics.txt ChangeLog *.cl exif-utils/*.cl makefile
 bin_dir = renpics-$(version)
 src_dir = renpics-$(version)-src
 
-bin_zip = DIST/$(bin_dir).zip
+bin_zip = DIST/$(bin_dir)-windows.zip
 src_zip = DIST/$(src_dir).zip
 readme  = DIST/renpics-$(version).txt
 
@@ -53,13 +53,13 @@ src-dist: FORCE
 
 dist:	FORCE
 	rm -fr $(bin_dir) $(bin_tar) $(bin_gz) $(bin_bz2) $(readme)
-	cp -rp dist $(bin_dir)
+	cp -rp renpics $(bin_dir)
 	cp -p renpics.txt $(bin_dir)
 	cp -p renpics.txt $(readme)
 	find $(bin_dir) -type f -print | zip -q $(bin_zip) -@9
 	rm -fr $(bin_dir)
 
 clean: FORCE
-	rm -fr *.fasl */*.fasl dist testout *.gz *.bz2
+	rm -fr *.fasl */*.fasl renpics testout *.gz *.bz2
 
 FORCE:
