@@ -1,4 +1,4 @@
-$Revision$	 -[Thu Feb 27 09:50:00 2003 by layer]-
+$Id$
 
 Table of Contents:
 
@@ -78,7 +78,7 @@ The command line arguments are:
 
 Copy the appropriate binary distribution:
 
-ftp://ftp.franz.com/pub/examples/renpics/renpics-1.6-windows.zip
+ftp://ftp.franz.com/pub/examples/renpics/renpics-1.8-windows.zip
 
 Unzip the binary and put the files somewhere in your PATH.  The
 file in the ``system-dlls'' sub-directory, msvcrt.dll, will only be
@@ -88,8 +88,8 @@ being missing, copy it into the same directory as pubpics.exe.
 ===============================================================================
 3. Building from source code
 
-Start up a fully patched Allegro CL 6.2 Enterprise Edition and
-evaluate this:
+Start up a fully patched Allegro CL (6.2 or later) Enterprise Edition
+and evaluate this:
 
       (load "buildit.cl")
 
