@@ -1,5 +1,13 @@
+2003-02-27  Kevin Layer  <layer@relay.known.net>
+1.6 public release
+
+	* (REMOVED) buildit.bat
+	* (REMOVED) isntall.sh
+	* makefile: src-dist and dist work
+	* renpics.cl: move location of exif-utils 
+	* renpics.txt: add stuff
+
 2003-02-26  Kevin Layer  <layer@relay.known.net>
-1.5 public release
 
 	* (NEW) makefile
 	* renpics.cl: add copyright

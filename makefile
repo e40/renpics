@@ -33,41 +33,33 @@ endif
 version = \
  $(shell grep Revision: renpics.cl | sed 's/.*Revision: \([0-9.]*\).*/\1/')
 
-src_files = readme.txt ChangeLog *.cl exif-utils/*.cl *.gif makefile
+src_files = renpics.txt ChangeLog *.cl exif-utils/*.cl makefile
 
 bin_dir = renpics-$(version)
 src_dir = renpics-$(version)-src
-bin_tar = $(bin_dir)-linux-glibc-2.1.tar
 
-bin_gz = DIST/$(bin_tar).gz
-bin_bz2 = DIST/$(bin_tar).bz2
-src_gz = DIST/$(src_dir).tar.gz
-readme = DIST/readme-$(version).txt
+bin_zip = DIST/$(bin_dir).zip
+src_zip = DIST/$(src_dir).zip
+readme  = DIST/renpics-$(version).txt
 
+#######HERE
 src-dist: FORCE
 	rm -fr $(src_dir) $(src_gz)
 	mkdir $(src_dir)
 	tar cf - $(src_files) | (cd $(src_dir); tar xf -)
-	tar zcf $(src_gz) $(src_dir)
+	find $(src_dir) -type f -print | zip -q $(src_zip) -@9
 	rm -fr $(src_dir)
 
 
 dist:	FORCE
 	rm -fr $(bin_dir) $(bin_tar) $(bin_gz) $(bin_bz2) $(readme)
 	cp -rp renpics $(bin_dir)
-	cp -p readme.txt $(bin_dir)
-	cp -p readme.txt $(readme)
-	tar cf $(bin_tar) $(bin_dir)
-	gzip -c9 < $(bin_tar) > $(bin_gz)
-	bzip2 -c9 < $(bin_tar) > $(bin_bz2)
-	rm -f $(bin_tar)
+	cp -p renpics.txt $(bin_dir)
+	cp -p renpics.txt $(readme)
+	find $(bin_dir) -type f -print | zip -q $(bin_zip) -@9
 	rm -fr $(bin_dir)
 
 clean: FORCE
 	rm -fr *.fasl */*.fasl renpics testout *.gz *.bz2
-
-test: FORCE
-	rm -fr testout
-	renpics/renpics test/ testout/
 
 FORCE:

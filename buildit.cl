@@ -10,7 +10,7 @@
 
 (generate-application
  "renpics"
- "dist/"
+ "renpics/"
  '(:seq2 "renpics.fasl")
  :application-files '("renpics.txt")
  :restart-init-function 'main
