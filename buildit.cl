@@ -42,11 +42,11 @@
 
 #+mswindows
 (progn
-  (delete-file "dist/renpics.exe")
-  (sys:copy-file "c:/Program files/acl62/buildi.exe" "dist/renpics.exe"))
+  (delete-file "renpics/renpics.exe")
+  (sys:copy-file "c:/Program files/acl62/buildi.exe" "renpics/renpics.exe"))
 
 ;; I believe :ignore-command-line-arguments makes the following unncessary
 #+ignore
-(with-open-file (s "dist/renpics.rc" :direction :output)
+(with-open-file (s "renpics/renpics.rc" :direction :output)
   (format s ".command-line: --~%"))
 
