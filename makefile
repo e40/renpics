@@ -54,12 +54,16 @@ src-dist: FORCE
 dist:	FORCE
 	rm -fr $(bin_dir) $(bin_tar) $(bin_gz) $(bin_bz2) $(readme)
 	cp -rp renpics $(bin_dir)
-	cp -p renpics.txt $(bin_dir)
-	cp -p renpics.txt $(readme)
+	cp -p readme.txt $(bin_dir)
+	cp -p readme.txt $(readme)
 	find $(bin_dir) -type f -print | zip -q $(bin_zip) -@9
 	rm -fr $(bin_dir)
 
 clean: FORCE
 	rm -fr *.fasl */*.fasl renpics testout *.gz *.bz2
+
+test: FORCE
+	rm -fr testout
+	renpics/renpics test/ testout/
 
 FORCE:
