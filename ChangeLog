@@ -1,3 +1,7 @@
+2005-12-17    <layer@OOB2>
+
+	* makefile: use 8.0
+
 2005-01-04    <layer@OOB2>
 
 	* makefile: use 7.0; fix src-dist and dist
