@@ -166,6 +166,8 @@ nn (sequence number) value discussed above.
 		    then raw-camera
 		  elseif (string= "DSC-D700" raw-camera)
 		    then "D700"
+		  elseif (string= "Palm Centro" raw-camera)
+		    then "Centro"
 		  elseif (string= "Canon PowerShot S1 IS" raw-camera)
 		    then "S1IS"
 		  elseif (string= "Canon PowerShot S20" raw-camera)
