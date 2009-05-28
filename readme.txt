@@ -1,4 +1,3 @@
-$Id$
 
 Table of Contents:
 
