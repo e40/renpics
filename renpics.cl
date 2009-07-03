@@ -73,7 +73,9 @@ nn (sequence number) value discussed above.
 
   (map-over-directory (lambda (p)
 			(when (equalp "jpg" (pathname-type p)) (incf nfiles))
-			(when (equalp "avi" (pathname-type p)) (incf nmovies)))
+			(when (or (equalp "avi" (pathname-type p))
+				  (equalp "mov" (pathname-type p)))
+			  (incf nmovies)))
 		      source-directory)
   (when (not *quiet*)
     (when (> nfiles 0)
@@ -81,7 +83,71 @@ nn (sequence number) value discussed above.
     (when (> nmovies 0)
       (format t "~d movies on card.~%" nmovies))
     (format t "~%"))
-  
+
+  ;; Do .mov files first, because they have a companion .jpg file, which we
+  ;; need for the exif info, and then we delete it.
+  (map-over-directory
+   (lambda (p &aux type)
+     (when (equalp "mov" (setq type (pathname-type p)))
+       (handler-case
+	   (let* ((jpg-type (make-pathname :type "jpg"))
+		  (jpg (merge-pathnames (merge-pathnames jpg-type p)
+					source-directory))
+		  (new-p
+		   (progn
+		     (when (not (probe-file jpg))
+		       (error "jpg file ~a does not exist!" jpg))
+		     (merge-pathnames
+		      (make-pathname :type type)
+		      (exif-based-name jpg output-directory camera
+				       file-date))))
+		  (op (if* move-images then "move" else "copy")))
+	     (when (not *quiet*)
+	       (incf nmovie)
+	       (format t "~d: ~a ~a to ~a~%"
+		       nmovie op (file-namestring p) new-p)
+	       (when move-images
+		 (format t "   remove ~a~%" (file-namestring jpg))))
+	     (when (not *no-execute*)
+	       (if* move-images
+		  then (rename-file p new-p)
+		       (delete-file jpg)
+		  else (sys:copy-file p new-p))))
+	 (error (c)
+	   (let ((*print-pretty* nil))
+	     (format t "Skipping ~a:~%  ~a~%" p c)))))
+
+     (when (equalp "avi" (setq type (pathname-type p)))
+       (handler-case
+	   (let* ((thm-type (make-pathname :type "thm"))
+		  (thm (merge-pathnames thm-type p))
+		  (new-p
+		   (progn
+		     (when (not (probe-file thm))
+		       (error "thm file ~a does not exist!" thm))
+		     (merge-pathnames
+		      (make-pathname :type type)
+		      (exif-based-name thm output-directory camera
+				       file-date))))
+		  (new-thm (merge-pathnames thm-type new-p))
+		  (op (if* move-images then "move" else "copy")))
+	     (when (not *quiet*)
+	       (incf nmovie)
+	       (format t "~d: ~a ~a to ~a~%"
+		       nmovie op (file-namestring p) new-p)
+	       (format t "   ~a ~a to ~a~%"
+		       op (file-namestring thm) new-thm))
+	     (when (not *no-execute*)
+	       (if* move-images
+		  then (rename-file p new-p)
+		       (rename-file thm new-thm)
+		  else (sys:copy-file p new-p)
+		       (sys:copy-file thm new-thm))))
+	 (error (c)
+	   (let ((*print-pretty* nil))
+	     (format t "Skipping ~a:~%  ~a~%" p c))))))
+   source-directory)
+
   (map-over-directory
    (lambda (p)
      (when (equalp "jpg" (pathname-type p))
@@ -113,39 +179,11 @@ nn (sequence number) value discussed above.
 	   (let ((*print-pretty* nil))
 	     (format t "Skipping ~a:~%  ~a~%" p c))))))
    source-directory)
-  
-  (map-over-directory
-   (lambda (p)
-     (when (equalp "avi" (pathname-type p))
-       (handler-case
-	   (let* ((thm-type (make-pathname :type "thm"))
-		  (thm (merge-pathnames thm-type p))
-		  (new-p
-		   (progn
-		     (when (not (probe-file thm))
-		       (error "thm file ~a does not exist!" thm))
-		     (merge-pathnames
-		      (make-pathname :type "avi")
-		      (exif-based-name thm output-directory camera
-				       file-date))))
-		  (new-thm (merge-pathnames thm-type new-p))
-		  (op (if* move-images then "move" else "copy")))
-	     (when (not *quiet*)
-	       (incf nmovie)
-	       (format t "~d: ~a ~a to ~a~%"
-		       nmovie op (file-namestring p) new-p)
-	       (format t "   ~a ~a to ~a~%"
-		       op (file-namestring thm) new-thm))
-	     (when (not *no-execute*)
-	       (if* move-images
-		  then (rename-file p new-p)
-		       (rename-file thm new-thm)
-		  else (sys:copy-file p new-p)
-		       (sys:copy-file thm new-thm))))
-	 (error (c)
-	   (let ((*print-pretty* nil))
-	     (format t "Skipping ~a:~%  ~a~%" p c))))))
-   source-directory))
+
+  (when (and move-images (not *no-execute*))
+    (map-over-directory
+     (lambda (p) (warn "Source file: ~a" p))
+     source-directory)))
 
 (defun exif-based-name (file output-directory camera file-date)
   (let* ((exif-info (parse-exif-data file))
@@ -180,6 +218,8 @@ nn (sequence number) value discussed above.
 		    then "G1"
 		  elseif (string= "Canon PowerShot G2" raw-camera)
 		    then "G2"
+		  elseif (string= "DMC-LX3" raw-camera)
+		    then "LX3"
 		  elseif (match-regexp
 			   (load-time-value (compile-regexp "NIKON D1"))
 			   raw-camera
