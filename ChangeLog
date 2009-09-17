@@ -1,3 +1,7 @@
+2009-09-17    <layer@OOB2>
+
+	* makefile: use 8.2.beta; copy locals on unix
+
 2009-07-02    <layer@OOB2>
 
 	* renpics.cl: for LX3's movies (.mov) -- don't keep the

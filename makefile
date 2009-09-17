@@ -3,7 +3,7 @@
 on_windows = $(shell if test -d "c:/"; then echo yes; else echo no; fi)
 
 ifndef mlisp
-mlisp := "/c/Program Files/acl81/mlisp"
+mlisp := "/c/Program Files/Allegro CL 8.2 beta/mlisp"
 endif
 
 ifeq ($(on_windows),yes)
@@ -24,7 +24,7 @@ ifeq ($(on_windows),yes)
 else
 	rm -fr /usr/local/renpics
 	mkdir /usr/local/renpics
-	cp -p renpics/* /usr/local/renpics
+	cp -rp renpics/* /usr/local/renpics
 	rm -f /usr/local/bin/renpics
 	ln -s /usr/local/renpics/renpics /usr/local/bin/renpics
 endif
