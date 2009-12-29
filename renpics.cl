@@ -190,6 +190,8 @@ nn (sequence number) value discussed above.
 	 (raw-camera (exif-info-model exif-info))
 	 (camera (if* camera
 		    then camera
+		  elseif (string= "Canon EOS 7D" raw-camera)
+		    then "7D"
 		  elseif (string= "Canon EOS D30" raw-camera)
 		    then "D30"
 		  elseif (or (string= "E950" raw-camera)
