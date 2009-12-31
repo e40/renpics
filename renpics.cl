@@ -65,6 +65,15 @@ nn (sequence number) value discussed above.
 	(exit 0 :quiet t))
     (error (c) (error-die "An error occurred: ~a." c))))
 
+(defparameter *movie-types*
+    ;; The types of files containing movies.
+    '("mov" "avi"))
+(defparameter *movie-companion-types*
+    ;; The types of files which are companions to *movie-types* files,
+    ;; which contain EXIF info for the movie (mainly the date it was
+    ;; taken).
+    '("jpg" "thm"))
+
 (defun renpics (source-directory output-directory
 		&key camera file-date move-images
 		&aux (nfiles 0) (nmovies 0) (nfile 0) (nmovie 0))
@@ -73,8 +82,8 @@ nn (sequence number) value discussed above.
 
   (map-over-directory (lambda (p)
 			(when (equalp "jpg" (pathname-type p)) (incf nfiles))
-			(when (or (equalp "avi" (pathname-type p))
-				  (equalp "mov" (pathname-type p)))
+			(when (member (pathname-type p)
+				      *movie-types* :test #'equalp)
 			  (incf nmovies)))
 		      source-directory)
   (when (not *quiet*)
@@ -84,68 +93,40 @@ nn (sequence number) value discussed above.
       (format t "~d movies on card.~%" nmovies))
     (format t "~%"))
 
-  ;; Do .mov files first, because they have a companion .jpg file, which we
-  ;; need for the exif info, and then we delete it.
+  ;; Do movie files first, because they have a companion file,
+  ;; which we need for the exif info, and then we delete it.
   (map-over-directory
-   (lambda (p &aux type)
-     (when (equalp "mov" (setq type (pathname-type p)))
-       (handler-case
-	   (let* ((jpg-type (make-pathname :type "jpg"))
-		  (jpg (merge-pathnames (merge-pathnames jpg-type p)
-					source-directory))
-		  (new-p
-		   (progn
-		     (when (not (probe-file jpg))
-		       (error "jpg file ~a does not exist!" jpg))
-		     (merge-pathnames
-		      (make-pathname :type type)
-		      (exif-based-name jpg output-directory camera
-				       file-date))))
-		  (op (if* move-images then "move" else "copy")))
-	     (when (not *quiet*)
-	       (incf nmovie)
-	       (format t "~d: ~a ~a to ~a~%"
-		       nmovie op (file-namestring p) new-p)
-	       (when move-images
-		 (format t "   remove ~a~%" (file-namestring jpg))))
-	     (when (not *no-execute*)
-	       (if* move-images
-		  then (rename-file p new-p)
-		       (delete-file jpg)
-		  else (sys:copy-file p new-p))))
-	 (error (c)
-	   (let ((*print-pretty* nil))
-	     (format t "Skipping ~a:~%  ~a~%" p c)))))
-
-     (when (equalp "avi" (setq type (pathname-type p)))
-       (handler-case
-	   (let* ((thm-type (make-pathname :type "thm"))
-		  (thm (merge-pathnames thm-type p))
-		  (new-p
-		   (progn
-		     (when (not (probe-file thm))
-		       (error "thm file ~a does not exist!" thm))
-		     (merge-pathnames
-		      (make-pathname :type type)
-		      (exif-based-name thm output-directory camera
-				       file-date))))
-		  (new-thm (merge-pathnames thm-type new-p))
-		  (op (if* move-images then "move" else "copy")))
-	     (when (not *quiet*)
-	       (incf nmovie)
-	       (format t "~d: ~a ~a to ~a~%"
-		       nmovie op (file-namestring p) new-p)
-	       (format t "   ~a ~a to ~a~%"
-		       op (file-namestring thm) new-thm))
-	     (when (not *no-execute*)
-	       (if* move-images
-		  then (rename-file p new-p)
-		       (rename-file thm new-thm)
-		  else (sys:copy-file p new-p)
-		       (sys:copy-file thm new-thm))))
-	 (error (c)
-	   (let ((*print-pretty* nil))
-	     (format t "Skipping ~a:~%  ~a~%" p c))))))
+   (lambda (p &aux type found)
+     (when (member (setq type (pathname-type p)) *movie-types* :test #'equalp)
+       (dolist (companion-type *movie-companion-types*)
+	 (let* ((companion
+		 (merge-pathnames
+		  (merge-pathnames (make-pathname :type companion-type) p)
+		  source-directory))
+		(new-p
+		 (progn
+		   (when (not (probe-file companion)) (go skip))
+		   (merge-pathnames
+		    (make-pathname :type type)
+		    (exif-based-name companion output-directory camera
+				     file-date))))
+		(op (if* move-images then "move" else "copy")))
+	   (setq found t)
+	   (when (not *quiet*)
+	     (incf nmovie)
+	     (format t "~d: ~a ~a to ~a~%" nmovie op (file-namestring p) new-p)
+	     (when move-images
+	       (format t "   remove ~a~%" (file-namestring companion))))
+	   (when (not *no-execute*)
+	     (if* move-images
+		then (rename-file p new-p)
+		     (delete-file companion)
+		else (sys:copy-file p new-p)))
+	   (return))
+	skip
+	 )
+       (when (not found)
+	 (format t "Skipping ~a, since no companion file found.~%" p))))
    source-directory)
 
   (map-over-directory
@@ -165,8 +146,7 @@ nn (sequence number) value discussed above.
 		       (file-namestring p)
 		       new-p)
 	       (when wav-exists
-		 (format t "   ~a to ~a~%" (file-namestring wav)
-			 new-wav)))
+		 (format t "   ~a to ~a~%" (file-namestring wav) new-wav)))
 	     (when (not *no-execute*)
 	       (if* move-images
 		  then (rename-file p new-p)
