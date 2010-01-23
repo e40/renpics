@@ -3,7 +3,7 @@
 on_windows = $(shell if test -d "c:/"; then echo yes; else echo no; fi)
 
 ifndef mlisp
-mlisp := "/c/Program Files/Allegro CL 8.2 beta/mlisp"
+mlisp := "/c/acl82/mlisp"
 endif
 
 ifeq ($(on_windows),yes)
