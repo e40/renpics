@@ -12,7 +12,7 @@
  "renpics"
  "renpics/"
  '(:seq2 "renpics.fasl")
- :application-files '("renpics.txt")
+ :application-files '("readme.txt")
  :restart-init-function 'main
  :include-ide nil
  :include-compiler nil

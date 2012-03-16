@@ -7,7 +7,6 @@
 ;; (http://opensource.franz.com/preamble.html),
 ;; known as the LLGPL.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; $Revision$
 
 (in-package :user)
 
@@ -67,7 +66,7 @@ nn (sequence number) value discussed above.
 
 (defparameter *movie-types*
     ;; The types of files containing movies.
-    '("mov" "avi"))
+    '("mov" "avi" "mts"))
 (defparameter *movie-companion-types*
     ;; The types of files which are companions to *movie-types* files,
     ;; which contain EXIF info for the movie (mainly the date it was
@@ -172,8 +171,10 @@ nn (sequence number) value discussed above.
 		    then camera
 		  elseif (string= "Canon EOS 1D" raw-camera)
 		    then "1D"
-		  elseif (string= "Canon EOS 5D" raw-camera)
-		    then "5D"
+		  elseif (string= "Canon EOS 5D Mark II" raw-camera)
+		    then "5DmkII"
+		  elseif (string= "Canon EOS 5D Mark III" raw-camera)
+		    then "5DmkIII"
 		  elseif (string= "Canon EOS 7D" raw-camera)
 		    then "7D"
 		  elseif (string= "Canon EOS D30" raw-camera)
@@ -206,6 +207,8 @@ nn (sequence number) value discussed above.
 		    then "G2"
 		  elseif (string= "DMC-LX3" raw-camera)
 		    then "LX3"
+		  elseif (string= "DMC-TS3" raw-camera)
+		    then "TS3"
 		  elseif (match-regexp
 			   (load-time-value (compile-regexp "NIKON D1"))
 			   raw-camera
