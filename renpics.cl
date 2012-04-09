@@ -16,24 +16,98 @@
 (eval-when (compile eval load)
   (require :exifinfo "exif-utils/exifinfo.fasl")
   (use-package :util.exif)
+  
+  (require :regexp2)
 
   (require :aclwin)
   (require :fileutil))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; variables that change with the addition of new cameras:
+
+(defparameter *types*
+    '((:movie "mov"  #+ignore ("jpg" "thm")) ;; 5D3 has no companion...
+      (:movie "avi"  ("jpg" "thm"))
+      (:movie "mts"  nil)
+      (:image "jpg"  ("wav" "cr2"))
+      (:image "jpeg" ("wav" "cr2"))
+      ;; All from the Panasonic TS3
+      (:ignore "mpl")
+      (:ignore "bdm")
+      (:ignore "cpi")
+      (:ignore "tid")
+      (:ignore "tdt")
+      ))
+
+(defparameter *camera-string-to-abbrev*
+    `(("Canon EOS 5D Mark III" . "5D3")
+      ("Canon EOS 7D" . "7D")
+      ("Canon EOS D30" . "D30")
+      ("Canon EOS 5D Mark II" . "5D2")
+      ("Canon EOS 1D" . "1D")
+      ("Galaxy Nexus" . "GN")
+      ("DSC-D700" . "D700")
+      ("Palm Centro" . "Centro")
+      ("Canon PowerShot S1 IS" . "S1IS")
+      ("Canon PowerShot S20" . "S20")
+      ("Canon PowerShot S30" . "S30")
+      ("Canon PowerShot S40" . "S40")
+      ("Canon PowerShot G1" . "G1")
+      ("Canon PowerShot G2" . "G2")
+      ("DMC-LX3" . "LX3")
+      ("DMC-TS3" . "TS3")
+      (,(lambda (raw-camera file)
+	  (when
+	      (or (string= "E950" raw-camera)
+		  ;; hack for me:
+		  (match-re
+		   (load-time-value (compile-re "^nikon"))
+		   (file-namestring file)
+		   :case-fold t :return nil))
+	    "N950")))
+      (,(lambda (raw-camera file)
+	  (declare (ignore file))
+	  (when (member raw-camera '("E990" "E800" "E700")
+			:test 'string=)
+	    raw-camera)))
+      (,(lambda (raw-camera file)
+	  (declare (ignore file))
+	  (when (match-re
+		 (load-time-value (compile-re "nikon d1"))
+		 raw-camera
+		 :case-fold t :return nil)
+	    "D1")))
+      (,(lambda (raw-camera file)
+	  (when (or (match-re
+		     (load-time-value (compile-re "^dc210"))
+		     raw-camera
+		     :case-fold t :return nil)
+		    ;; hack for me:
+		    (match-re
+		     (load-time-value (compile-re "^dcp"))
+		     (file-namestring file)
+		     :case-fold t :return nil))
+	    "DC210")))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar *quiet* nil)
 (defvar *no-execute* nil)
 (defvar *debug* nil)
 (defvar *usage*
-    "Usage: [-c camera] [-n] [-m] [-q] [-o output-directory] directory
--c camera :: force camera name to `camera'
--f :: use file write date if there is no exif information in file
--n :: just print what would be done, but do not do it
+    "Usage: [-c camera] [-f] [-m] [-n] [-q] [-o output-directory] directory
+-c camera
+   :: force camera name to `camera' -- useful if the camera is not one of
+      the known types
+-f :: do *NOT* use file write date if there is no exif information in file
 -m :: move, instead of copy, images to destination directory
+-n :: just print what would be done, but do not do it
 -q :: operate quietly
--o output-directory :: send files to output-directory
-directory :: the source location for pictures to rename
+-o output-directory
+   :: send files to output-directory -- defaults to 'directory'
+directory
+   :: the location of the pictures to rename
 
-What the program does is look inside the jpg's at the EXIF info and pulls
+renpics looks inside the camera files at the EXIF info and pulls
 out the date and camera name.  The camera name is assigned an
 abbreviation.  The final name of the file has this format:
 
@@ -42,198 +116,294 @@ abbreviation.  The final name of the file has this format:
 where YYYY is the year, MM is the month, DD is the day, hh is the hour, mm
 is the minute, ss is the second, nn is a sequence number used only when
 more than one picture was taken in a given second, and xxxx is the camera
-name.
-
-NOTE: if you run renpics more than once on the same directory and do
-not give a -o argument, it will keep renaming the files, updating only the
-nn (sequence number) value discussed above.
+abbreviation based on the real name, or that set with the -c argument.
 ")
 
 (defun main ()
   (handler-case
       (sys:with-command-line-arguments
 	  ("c:fo:mnq"
-	   camera file-date output-directory move-images
+	   camera no-file-date output-directory move
 	   *no-execute* *quiet*)
 	  (rest)
 	(when (/= 1 (length rest))
 	  (format t "~&You must provide an input directory.~%")
 	  (error-die *usage*))
-	(renpics (first rest) output-directory :move-images move-images
-		 :camera camera :file-date file-date)
+	(renpics (first rest) output-directory :move move
+		 :camera camera :file-date (not no-file-date))
 	(exit 0 :quiet t))
     (error (c) (error-die "An error occurred: ~a." c))))
 
-(defparameter *movie-types*
-    ;; The types of files containing movies.
-    '("mov" "avi" "mts"))
-(defparameter *movie-companion-types*
-    ;; The types of files which are companions to *movie-types* files,
-    ;; which contain EXIF info for the movie (mainly the date it was
-    ;; taken).
-    '("jpg" "thm"))
+(defun find-type (p)
+  (dolist (type *types*)
+    (when (equalp (second type)
+		  (pathname-type p))
+      (return (values-list type)))))
+
+(defstruct fileinfo
+  path					; the path to the file
+  exif-file				; the file with the exif info
+  companions				; a list of companions
+  type					; type (:image or :movie)
+  )
+
+(defun find-companions (p types &aux (res '()) temp)
+  (dolist (type types)
+    (when (probe-file
+	   (setq temp
+	     (merge-pathnames (make-pathname :type type)
+			      p)))
+      (push temp res)))
+  ;; preserve order from `types':
+  (nreverse res))
+
+(defun note-type (ht type files)
+  (when files
+    (when (not (consp files))
+      (setq files (list files)))
+    (dolist (file files)
+      (setf (gethash (file-namestring file) ht)
+	type))))
 
 (defun renpics (source-directory output-directory
-		&key camera file-date move-images
-		&aux (nfiles 0) (nmovies 0) (nfile 0) (nmovie 0))
+		&key camera (file-date t) move
+		     ((:no-execute *no-execute*) *no-execute*)
+		&aux (nimages 0)
+		     (nmovies 0)
+		     (images '())
+		     (movies '())
+		     (unknown '())
+		     (ht
+		      ;; make file-namestring to type.  Values are:
+		      ;;   :image, :movie or :companion'
+		      (make-hash-table :size 777 :test #'equalp)))
   (when (not (probe-file source-directory))
     (error-die "Directory ~a does not exist." source-directory))
-
-  (map-over-directory (lambda (p)
-			(when (equalp "jpg" (pathname-type p)) (incf nfiles))
-			(when (member (pathname-type p)
-				      *movie-types* :test #'equalp)
-			  (incf nmovies)))
-		      source-directory)
-  (when (not *quiet*)
-    (when (> nfiles 0)
-      (format t "~d images on card.~%" nfiles))
-    (when (> nmovies 0)
-      (format t "~d movies on card.~%" nmovies))
-    (format t "~%"))
-
-  ;; Do movie files first, because they have a companion file,
-  ;; which we need for the exif info, and then we delete it.
-  (map-over-directory
-   (lambda (p &aux type found)
-     (when (member (setq type (pathname-type p)) *movie-types* :test #'equalp)
-       (dolist (companion-type *movie-companion-types*)
-	 (let* ((companion
-		 (merge-pathnames
-		  (merge-pathnames (make-pathname :type companion-type) p)
-		  source-directory))
-		(new-p
-		 (progn
-		   (when (not (probe-file companion)) (go skip))
-		   (merge-pathnames
-		    (make-pathname :type type)
-		    (exif-based-name companion output-directory camera
-				     file-date))))
-		(op (if* move-images then "move" else "copy")))
-	   (setq found t)
-	   (when (not *quiet*)
-	     (incf nmovie)
-	     (format t "~d: ~a ~a to ~a~%" nmovie op (file-namestring p) new-p)
-	     (when move-images
-	       (format t "   remove ~a~%" (file-namestring companion))))
-	   (when (not *no-execute*)
-	     (if* move-images
-		then (rename-file p new-p)
-		     (delete-file companion)
-		else (sys:copy-file p new-p)))
-	   (return))
-	skip
-	 )
-       (when (not found)
-	 (format t "Skipping ~a, since no companion file found.~%" p))))
-   source-directory)
-
+  
+  ;; Movies first, since their types overlap with images.
   (map-over-directory
    (lambda (p)
-     (when (equalp "jpg" (pathname-type p))
-       (handler-case
-	   (let* ((new-p (exif-based-name p output-directory camera
-					  file-date))
-		  (wav-type (make-pathname :type "wav"))
-		  (wav (merge-pathnames wav-type p))
-		  (new-wav (merge-pathnames wav-type new-p))
-		  (wav-exists (probe-file wav)))
-	     (when (not *quiet*)
-	       (incf nfile)
-	       (format t "~d: ~a ~a to ~a~%"
-		       nfile (if* move-images then "move" else "copy")
-		       (file-namestring p)
-		       new-p)
-	       (when wav-exists
-		 (format t "   ~a to ~a~%" (file-namestring wav) new-wav)))
-	     (when (not *no-execute*)
-	       (if* move-images
-		  then (rename-file p new-p)
-		  else (sys:copy-file p new-p))
-	       (when wav-exists
-		 (if* move-images
-		    then (rename-file wav new-wav)
-		    else (sys:copy-file wav new-wav)))))
-	 (error (c)
-	   (let ((*print-pretty* nil))
-	     (format t "Skipping ~a:~%  ~a~%" p c))))))
+     (when (not (gethash (file-namestring p) ht))
+       ;; We've not seen this file before...
+       (multiple-value-bind (type file-type companion-types) (find-type p)
+	 (when (and (eq :movie type)
+		    (equalp file-type (pathname-type p)))
+	   (let ((companions (find-companions p companion-types)))
+	     (if* companions
+		then (note-type ht :companion companions)
+	      elseif companion-types
+		then (error "There was no companion for movie: ~a." p))
+	     (note-type ht :movie p)
+	     (push (make-fileinfo :type :movie :path p
+				  :exif-file (or (car companions) p)
+				  :companions companions)
+		   movies)
+	     (incf nmovies))))))
    source-directory)
+  
+  (map-over-directory
+   (lambda (p)
+     (block done
+       (when (not (gethash (file-namestring p) ht))
+	 ;; We've not seen this file before...
+	 (multiple-value-bind (type file-type companion-types) (find-type p)
+	   (when (equalp file-type (pathname-type p))
+	     (when (eq :ignore type) (return-from done))
+	     (when (eq :movie type)
+	       (error "unexpected movie type: ~s, ~s." type p))
+	     (when (eq :image type)
+	       (let ((companions (find-companions p companion-types)))
+		 (note-type ht :companion companions)
+		 (note-type ht :image p)
+		 (push (make-fileinfo :type :image :path p :exif-file p :companions companions)
+		       images)
+		 (incf nimages)
+		 (return-from done)))
+	     ;; Fall through...
+	     (push p unknown))))))
+   source-directory)
+  
+  (dolist (p unknown)
+     (when (not (gethash (file-namestring p) ht))
+       (warn "Don't know how to handle: ~a." p)))
+  
+  (when (not *quiet*)
+    (when (> nimages 0)
+      (format t "~d images~%" nimages))
+    (when (> nmovies 0)
+      (format t "~d movies~%" nmovies))
+    (format t "~%"))
 
-  (when (and move-images (not *no-execute*))
-    (map-over-directory
-     (lambda (p) (warn "Source file: ~a" p))
-     source-directory)))
+  ;; Process images before movies so we can set the default camera in the
+  ;; images phases.
+  
+  (process-files (nreverse images)
+		 :output-directory output-directory
+		 :camera camera
+		 :file-date file-date
+		 :move move
+		 :no-execute *no-execute*)
+  
+  (process-files (nreverse movies)
+		 :output-directory output-directory
+		 :camera camera
+		 :file-date file-date
+		 :move move
+		 :no-execute *no-execute*)
+  
+  t)
 
-(defun exif-based-name (file output-directory camera file-date)
-  (let* ((exif-info (parse-exif-data file))
-	 (raw-camera (exif-info-model exif-info))
-	 (camera (if* camera
-		    then camera
-		  elseif (string= "Canon EOS 1D" raw-camera)
-		    then "1D"
-		  elseif (string= "Canon EOS 5D Mark II" raw-camera)
-		    then "5DmkII"
-		  elseif (string= "Canon EOS 5D Mark III" raw-camera)
-		    then "5DmkIII"
-		  elseif (string= "Canon EOS 7D" raw-camera)
-		    then "7D"
-		  elseif (string= "Canon EOS D30" raw-camera)
-		    then "D30"
-		  elseif (or (string= "E950" raw-camera)
-			     ;; hack for me:
-			     (match-regexp
-			      (load-time-value (compile-regexp "^nikon"))
-			      (file-namestring file)
-			      :case-fold t :return nil))
-		    then "N950"
-		  elseif (member raw-camera '("E990" "E800" "E700")
-				 :test 'string=)
-		    then raw-camera
-		  elseif (string= "DSC-D700" raw-camera)
-		    then "D700"
-		  elseif (string= "Palm Centro" raw-camera)
-		    then "Centro"
-		  elseif (string= "Canon PowerShot S1 IS" raw-camera)
-		    then "S1IS"
-		  elseif (string= "Canon PowerShot S20" raw-camera)
-		    then "S20"
-		  elseif (string= "Canon PowerShot S30" raw-camera)
-		    then "S30"
-		  elseif (string= "Canon PowerShot S40" raw-camera)
-		    then "S40"
-		  elseif (string= "Canon PowerShot G1" raw-camera)
-		    then "G1"
-		  elseif (string= "Canon PowerShot G2" raw-camera)
-		    then "G2"
-		  elseif (string= "DMC-LX3" raw-camera)
-		    then "LX3"
-		  elseif (string= "DMC-TS3" raw-camera)
-		    then "TS3"
-		  elseif (match-regexp
-			   (load-time-value (compile-regexp "NIKON D1"))
-			   raw-camera
-			   :case-fold t :return nil)
-		    then "D1"
-		  elseif (or
-			  (match-regexp
-			   (load-time-value (compile-regexp "^DC210"))
-			   raw-camera
-			   :case-fold t :return nil)
-			  ;; hack for me:
-			  (match-regexp
-			   (load-time-value (compile-regexp "^dcp"))
-			   (file-namestring file)
-			   :case-fold t :return nil))
-		    then "DC210"
-		    else (error "Unknown camera: ~a." raw-camera)))
+(defvar *default-camera-abbrev* nil)
+
+(defun process-files (fileinfos
+		      &key output-directory camera file-date move
+			   ((:no-execute *no-execute*) *no-execute*)
+		      &aux (nfile 1)
+			   (op (if move "move" "copy"))
+			   (pastop (if move "moved" "copied")))
+  (when (and output-directory (not *quiet*))
+    (format t ";;~@[~* would~] ~a items to ~a:~%" *no-execute* op
+	    output-directory))
+  
+  (dolist (fi fileinfos)
+    #+ignore
+    (when (and (null (fileinfo-exif-file fi))
+	       (null (fileinfo-companions fi)))
+      (when (null output-directory)
+	(format t "~d: skipping ~a...~%" nfile (fileinfo-path fi))
+	(go next))
+      
+      ;; Simple move/copy
+      (let* ((p (fileinfo-path fi))
+	     (new-p (merge-pathnames (file-namestring p) output-directory)))
+
+	(when (and output-directory (probe-file new-p))
+	  (warn "File exists in output directory (~a)." (file-namestring p))
+	  (go next))
+
+	(when (not *quiet*)
+	  (format t "~d:~@[~* would~] ~a ~a to ~a~%"
+		  nfile *no-execute* op (file-namestring p) new-p))
+      
+	(when (not *no-execute*)
+	  (if* move
+	     then (rename-file p new-p)
+	     else (sys:copy-file p new-p)))
+
+	(incf nfile)
+      
+	(go next)))
+    
+    (multiple-value-bind (new-p sequence error-info)
+	(exif-based-name
+	 (fileinfo-exif-file fi) output-directory camera file-date
+	 :ignore-exif-errors (eq :movie (fileinfo-type fi)))
+      (when error-info
+	(warn error-info)
+	(go next))
+      
+      (let ((p (fileinfo-path fi))
+	    (companions (if* (fileinfo-companions fi)
+			   thenret)))
+	
+	;; output-directory can have 3 distinct values:
+	;;   1. nil (use directory of source file)
+	;;   2. specified directory != output-directory
+	;;   3. specified directory == output-directory
+	;; If we run renpics twice with the same parameters, we want to
+	;; handle each of the 3 cases gracefully.
+	;;
+	;; If moving to the same directory, then make sure we wouldn't just
+	;; renumber the files.  In this case, warn and skip.
+	(if* (and (same-path-p p new-p)
+		  (> sequence 0))
+	   then ;; Cases (1) and (3) above
+		(warn "File already ~a: ~a." pastop (file-namestring p))
+		(go next)
+	 elseif (and output-directory (> sequence 0))
+	   then ;; Case (2) above
+		(warn "File exists in output directory (~a)."
+		      (file-namestring p))
+		(go next))
+
+	;; Check that all destination files do not exist before we start
+	;; copying or moving:
+	(and (probe-file new-p)
+	     (error "internal error: new-p exists: ~s." new-p))
+	(dolist (companion companions)
+	  (let ((new-companion (merge-pathnames
+				(make-pathname :type (pathname-type companion))
+				new-p)))
+	    (and (probe-file new-companion)
+		 (error "internal error: new companion exists: ~s."
+			new-companion))))
+	
+	(when (not *quiet*)
+	  (format t "~3d:~@[~* would~] ~a ~a to ~a~%"
+		  nfile *no-execute* op (file-namestring p)
+		  (file-namestring new-p)))
+	
+	(when (not *no-execute*)
+	  (if* move
+	     then (rename-file p new-p)
+	     else (sys:copy-file p new-p)))
+	(dolist (companion companions)
+	  (let ((new-companion (merge-pathnames
+				(make-pathname :type (pathname-type companion))
+				new-p)))
+	    (when (not *quiet*)
+	      (format t "     ~a ~a to ~a~%"
+		      op (file-namestring companion) (file-namestring new-companion)))
+	    (when (not *no-execute*)
+	      (if* move
+		 then (rename-file companion new-companion)
+		 else (sys:copy-file companion new-companion)))))))
+   next
+    (incf nfile))
+  
+  (format t "~%"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; exif-based naming
+
+(defun exif-based-name (file output-directory given-camera file-date
+			&key ignore-exif-errors)
+  (let* ((exif-info (handler-case (parse-exif-data file)
+		      (error (c)
+			(when (not ignore-exif-errors)
+			  (warn "parsing exif: ~a" c))
+			nil)))
+	 (raw-camera (when exif-info (exif-info-model exif-info)))
+	 camera-abbrev
 	 name
 	 (sequence 0))
+    
+    (setq camera-abbrev
+      (if* given-camera
+	 thenret
+       elseif *default-camera-abbrev*
+	 thenret
+	 else (when (null raw-camera)
+		(return-from exif-based-name
+		  (values
+		   nil nil
+		   (format nil "Cannot determine raw camera name from ~a."
+			   file))))
+	      (or (camera-to-abbrev raw-camera file)
+		  (error "Cannot convert raw name to abbreviation: ~a."
+			 raw-camera))))
+    ;; Set this so renaming movies w/o exif info can include a camera name
+    (when (null *default-camera-abbrev*)
+      (setq *default-camera-abbrev* camera-abbrev))
+    
     (destructuring-bind (year month day hour minute second)
-	(if* (and (null (exif-info-date exif-info)) file-date)
+	(if* (and (or (null exif-info)
+		      (null (exif-info-date exif-info)))
+		  file-date)
 	   then (list 0 nil nil nil nil nil)
 	   else (mapcar #'read-from-string
-			(split-regexp
-			 (load-time-value (compile-regexp "[: ]"))
+			(split-re
+			 (load-time-value (compile-re "[: ]"))
 			 (or (exif-info-date exif-info)
 			     (error "No :date in exif info.")))))
       (when (zerop year)
@@ -245,15 +415,26 @@ nn (sequence number) value discussed above.
 	  (format nil "~d~2,'0d~2,'0d-~2,'0d~2,'0d-~2,'0d~2,'0d-~a.~a"
 		  year month day hour minute second
 		  sequence
-		  camera
+		  camera-abbrev
 		  (pathname-type file)))
 	(let ((new (merge-pathnames name
 				    (if* output-directory
 				       thenret
 				       else file))))
 	  (when (not (probe-file new))
-	    (return-from exif-based-name new)))
+	    (return-from exif-based-name (values new sequence))))
 	(incf sequence)))))
+
+(defun camera-to-abbrev (raw-camera file
+			 &aux temp)
+  (dolist (item *camera-string-to-abbrev*)
+    (if* (functionp (car item))
+       then (when (setq temp (funcall (car item) raw-camera file))
+	      (return temp))
+     elseif (stringp (car item))
+       then (when (string= (car item) raw-camera)
+	      (return (cdr item)))
+       else (error "Bad item car: ~s." (car item)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; utils
@@ -266,6 +447,7 @@ nn (sequence number) value discussed above.
 	  (fresh-line t)
 	  (exit 0 :no-unwind t :quiet t)))
 
+#+ignore ;; not sure what this was for, but it's unused now
 (defun my-read-line (stream &optional terminate-on-space)
   (let ((term-chars
 	 `(#\return #\newline ,@(when terminate-on-space '(#\space))))
@@ -290,6 +472,7 @@ nn (sequence number) value discussed above.
 	     else (concatenate 'simple-string (nreverse line)))))
       (push c line))))
 
+#+ignore ;; not sure what this was for, but it's unused now
 (defun read-lines (stream)
   (let ((lines '())
 	line)
@@ -298,4 +481,9 @@ nn (sequence number) value discussed above.
       (when (eq stream line) (return (nreverse lines)))
       (push line lines))))
 
+(defun same-path-p (p1 p2)
+  (equalp (path-namestring p1)
+	  (path-namestring p2)))
+
 (provide :renpics)
+
