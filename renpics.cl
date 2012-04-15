@@ -255,6 +255,24 @@ abbreviation based on the real name, or that set with the -c argument.
 
 (defvar *default-camera-abbrev* nil)
 
+(defun make-new-name (file year month day hour minute second sequence
+		      camera-abbrev)
+  (let ((new
+	 (format nil "~d~2,'0d~2,'0d-~2,'0d~2,'0d-~2,'0d~2,'0d-~a.~a"
+		 year month day hour minute second sequence camera-abbrev
+		 (pathname-type file))))
+    ;; Make sure our RE is good, so check the name now to make sure:
+    (or (new-name-p new) (error "Internal error: bad name: ~a." new))
+    new))
+
+(defvar *new-name-re*
+    ;; this is the form of the target filename, that created by
+    ;; `make-new-name'.
+    (compile-re "^\\d{4}\\d{2}\\d{2}-\\d{4}-\\d{4}-[^.]*\\."))
+
+(defun new-name-p (file)
+  (match-re *new-name-re* (file-namestring file) :return nil))
+
 (defun process-files (fileinfos
 		      &key output-directory camera file-date move
 			   ((:no-execute *no-execute*) *no-execute*)
@@ -305,26 +323,21 @@ abbreviation based on the real name, or that set with the -c argument.
       (let ((p (fileinfo-path fi))
 	    (companions (if* (fileinfo-companions fi)
 			   thenret)))
-	
-	;; output-directory can have 3 distinct values:
-	;;   1. nil (use directory of source file)
-	;;   2. specified directory != output-directory
-	;;   3. specified directory == output-directory
-	;; If we run renpics twice with the same parameters, we want to
-	;; handle each of the 3 cases gracefully.
+	;; There are two special cases:
+	;;  * multiple images taken in the same second, in which case we
+	;;    want to make sure to rename with a different sequence
+	;;    number, and
+	;;  * running renpics twice, in which case we don't want to keep
+	;;    renaming the files.
 	;;
-	;; If moving to the same directory, then make sure we wouldn't just
-	;; renumber the files.  In this case, warn and skip.
-	(if* (and (same-path-p p new-p)
-		  (> sequence 0))
-	   then ;; Cases (1) and (3) above
-		(warn "File already ~a: ~a." pastop (file-namestring p))
-		(go next)
-	 elseif (and output-directory (> sequence 0))
-	   then ;; Case (2) above
-		(warn "File exists in output directory (~a)."
-		      (file-namestring p))
-		(go next))
+	;; We handle both at the same time by not renaming if:
+	;;  1. the old filename is new-name-p, and
+	;;  2. the sequence number is > 0, meaning there was an existing
+	;;     file with the same name.
+	(when (and (new-name-p p)
+		   (> sequence 0))
+	  (warn "File already ~a: ~a." pastop (file-namestring p))
+	  (go next))
 
 	;; Check that all destination files do not exist before we start
 	;; copying or moving:
@@ -412,11 +425,8 @@ abbreviation based on the real name, or that set with the -c argument.
 	  (decode-universal-time (file-write-date file))))
       (loop
 	(setq name
-	  (format nil "~d~2,'0d~2,'0d-~2,'0d~2,'0d-~2,'0d~2,'0d-~a.~a"
-		  year month day hour minute second
-		  sequence
-		  camera-abbrev
-		  (pathname-type file)))
+	  (make-new-name file year month day hour minute second sequence
+			 camera-abbrev))
 	(let ((new (merge-pathnames name
 				    (if* output-directory
 				       thenret
