@@ -3,8 +3,6 @@
 
 (setq excl::*break-on-warnings* t)
 
-(delete-directory-and-files "c:/src/renpics/dist/" :if-does-not-exist :ignore)
-
 (declaim (optimize (speed 3)))
 (compile-file "renpics.cl")
 
@@ -12,6 +10,7 @@
  "renpics"
  "renpics/"
  '(:seq2 "renpics.fasl")
+ :allow-existing-directory t
  :application-files '("readme.txt")
  :restart-init-function 'main
  :include-ide nil
